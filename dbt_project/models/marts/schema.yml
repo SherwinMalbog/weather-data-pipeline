@@ -1,0 +1,16 @@
+version: 2
+
+models:
+  - name: dim_city
+    description: One row per city tracked by the pipeline.
+    columns:
+      - name: city_name
+        tests: [unique, not_null]
+
+  - name: fct_daily_weather
+    description: Daily aggregated weather metrics per city.
+    columns:
+      - name: city
+        tests: [not_null]
+      - name: reading_date
+        tests: [not_null]

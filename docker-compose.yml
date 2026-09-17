@@ -1,0 +1,93 @@
+services:
+
+  # ---- Data lake (emulates AWS S3 / Azure Blob / GCS) ----
+  minio:
+    image: minio/minio:latest
+    container_name: weather_minio
+    ports:
+      - "9000:9000"   # S3 API
+      - "9001:9001"   # web console
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
+    command: server /data --console-address ":9001"
+    volumes:
+      - minio_data:/data
+
+  # one-off job: creates the "raw-weather" bucket on first startup
+  mc-init:
+    image: minio/mc:latest
+    container_name: weather_mc_init
+    depends_on:
+      - minio
+    entrypoint: >
+      /bin/sh -c "
+      until mc alias set local http://minio:9000 minioadmin minioadmin; do sleep 2; done;
+      mc mb -p local/raw-weather;
+      exit 0;
+      "
+
+  # ---- Data warehouse (emulates Redshift/Synapse/BigQuery) ----
+  postgres:
+    image: postgres:16
+    container_name: weather_postgres
+    environment:
+      POSTGRES_DB: warehouse
+      POSTGRES_USER: warehouse
+      POSTGRES_PASSWORD: warehouse
+    ports:
+      - "5432:5432"
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+      - ./sql/init_warehouse.sql:/docker-entrypoint-initdb.d/init_warehouse.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U warehouse"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # ---- Orchestration (emulates MWAA / Data Factory / Cloud Composer) ----
+  airflow:
+    build:
+      context: .
+      dockerfile: Dockerfile.airflow
+    container_name: weather_airflow
+    depends_on:
+      - postgres
+      - minio
+    environment:
+      AIRFLOW__CORE__EXECUTOR: LocalExecutor
+      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://warehouse:warehouse@postgres:5432/airflow
+      AIRFLOW__CORE__LOAD_EXAMPLES: "false"
+      PYTHONPATH: /opt/airflow
+      MINIO_ENDPOINT: http://minio:9000
+      MINIO_ACCESS_KEY: minioadmin
+      MINIO_SECRET_KEY: minioadmin
+      MINIO_BUCKET: raw-weather
+      WAREHOUSE_HOST: postgres
+      WAREHOUSE_PORT: 5432
+      WAREHOUSE_DB: warehouse
+      WAREHOUSE_USER: warehouse
+      WAREHOUSE_PASSWORD: warehouse
+      CITIES_CONFIG: /opt/airflow/config/cities.yaml
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./dags:/opt/airflow/dags
+      - ./src:/opt/airflow/src
+      - ./config:/opt/airflow/config
+      - ./dbt_project:/opt/airflow/dbt_project
+    command: standalone
+
+  # ---- BI / dashboard (emulates QuickSight / Power BI / Looker Studio) ----
+  metabase:
+    image: metabase/metabase:latest
+    container_name: weather_metabase
+    ports:
+      - "3000:3000"
+    depends_on:
+      - postgres
+
+volumes:
+  minio_data:
+  pg_data:

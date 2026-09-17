@@ -1,0 +1,19 @@
+version: 2
+
+sources:
+  - name: raw
+    schema: raw
+    tables:
+      - name: weather_readings
+        description: Raw weather API readings, loaded as-is from the data lake.
+
+models:
+  - name: stg_weather
+    description: Cleaned, typed view over raw weather API readings.
+    columns:
+      - name: reading_id
+        tests: [unique, not_null]
+      - name: city
+        tests: [not_null]
+      - name: temperature_c
+        tests: [not_null]

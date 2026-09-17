@@ -1,0 +1,14 @@
+# Copy this file to profiles.yml (which is gitignored -- never commit real
+# credentials, even local-only ones, as a habit).
+weather_dbt:
+  target: dev
+  outputs:
+    dev:
+      type: postgres
+      host: "{{ env_var('WAREHOUSE_HOST', 'localhost') }}"
+      port: 5432
+      user: "{{ env_var('WAREHOUSE_USER', 'warehouse') }}"
+      pass: "{{ env_var('WAREHOUSE_PASSWORD', 'warehouse') }}"
+      dbname: "{{ env_var('WAREHOUSE_DB', 'warehouse') }}"
+      schema: staging
+      threads: 4
