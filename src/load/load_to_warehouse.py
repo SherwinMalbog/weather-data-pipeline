@@ -10,7 +10,6 @@ ON CONFLICT DO NOTHING, so re-running this script (e.g. after an Airflow
 retry) never creates duplicate rows.
 """
 import json
-import os
 from datetime import datetime, timezone
 
 from src.utils.minio_client import get_minio_client, BUCKET_NAME
