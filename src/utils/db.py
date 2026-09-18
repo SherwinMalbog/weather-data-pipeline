@@ -2,9 +2,13 @@
 Connection helper for the warehouse (Postgres standing in for
 Redshift/Synapse/BigQuery -- see docs/03-Cloud-Service-Equivalents.md).
 """
+
 import os
 
 import psycopg2
+from dotenv import load_dotenv
+
+load_dotenv()
 
 
 def get_connection():
